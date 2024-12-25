@@ -1,4 +1,3 @@
-# %%
 import os
 import time
 
@@ -8,7 +7,9 @@ import geopandas as gpd
 from shapely import *
 from StreetBlockage import *
 
-# %%
+simu_name = input('Put the Name of Directory to Save Data: ')
+trial_number = int(input('Put the Number of Trials: '))
+
 '''
 DATA INPUT
 '''
@@ -22,7 +23,6 @@ input_name = ['bldg', 'block', 'pole', 'road', 'link', 'soil']
 
 bldg_gdf, block_gdf, pole_gdf, road_gdf, link_gdf, soil_gdf = map(lambda n: input_gdf(input_directory, n), input_name)
 
-# %%
 '''
 SETTING
 '''
@@ -77,14 +77,12 @@ for pole in poles:
     debris_precal_list[pole.obj_id] = debris_ground
 
 print('Preparation Finished\n')
-# %%
+
 '''
 FLOW
 '''
 
 start_time = time.time()
-simu_name = input('Put the Name of Directory to Save Data: ')
-trial_number = int(input('Put the Number of Trials: '))
 os.makedirs(simu_name) 
 print('\nSTART SIMULATION\n')
 

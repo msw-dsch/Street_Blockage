@@ -4,8 +4,8 @@ import heapq
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import optuna
 from shapely import *
+from scipy.optimize import minimize
 from scipy.stats import norm
 
 '''土質情報'''
@@ -27,7 +27,7 @@ class Soil:
         FL_matrix = np.zeros([len(self.soil_data), 200])
         for s, soil in enumerate(self.soil_data):
             for z, v in soil.items():
-            # N値，上載土圧 sigma (kN/m^2)，有効上載土圧 sigma_dash (kN/m^2)，細粒分含有率 FC (%)，細粒分含有率 D50 から求めたN値低減係数 Cab
+            # N値，上載土圧 sigma (kN/m^2)，有効上載土圧 sigma_dash (kN/m^2)，細粒分含有率 FC (%)，50%粒径 D50 から求めたN値低減係数 Cab
                 N, sigma, sigma_dash, FC, Cab = v['N'], v['sigma'], v['sigma_dash'], v['FC'], v['Cab']
                 # 細粒分含有率 (%)
                 if N < 22: # FC値を, 土質から推測する方法とN値から推測する方法で危険側にとる
@@ -109,29 +109,21 @@ class Soil:
         df_all_data['h_l'] = list(map(np.floor, df_all_data.h / lag))
         df_experiencial_semivariogram = df_all_data.groupby('h_l').mean()
 
-        def SSE(df_experiencial_semivariogram, c0, c, a):
+        def SSE(x):
             sse = 0
-            for _, row in df_experiencial_semivariogram.iterrows():
-                h = row['h']
-                g_e = row['g']
-                g_m = self.variogram_model(h, c0, c, a)
+            for row in df_experiencial_semivariogram.itertuples():
+                h, g_e = row.h, row.g
+                g_m = self.variogram_model(h, *x)
                 sse += np.square(g_e - g_m)
             return sse
+        
+        initial_guess = [30, 70, 2000]
+        bound = [(0, 50), (0, 100), (100, 2500)]
+        cons = {"type": "ineq", "fun": lambda x: x[1] - x[0]}
 
-        def objective(trial):
-            c0 = trial.suggest_float("c0", 0, 50)
-            c = trial.suggest_float("c", 0, 100)
-            a = trial.suggest_float("a", 100, 2200)
+        result = minimize(SSE, initial_guess, bounds=bound, constraints=cons)
 
-            sse = SSE(df_experiencial_semivariogram, c0, c, a)
-            trial.set_user_attr("constraints", [c0 < c])
-            return sse
-
-        optuna.logging.disable_default_handler()
-        study = optuna.create_study(direction='minimize')
-        study.optimize(objective, n_trials=2500)
-
-        self._c0, self._c, self._a = study.best_params['c0'], study.best_params['c'], study.best_params['a']
+        self._c0, self._c, self._a = result.x
 
         # variogram matrix
         variogram_matrix = np.ones([self.shape+1, self.shape+1])
@@ -653,7 +645,7 @@ class RoadLink:
 
     '''初期化'''
     def reset(self):
-        self.status, self.by_who = 'exist', []
+        self.status, self.by_who = 'initial', []
         self.set_blockage_rank(self.initial_width)
         self.width = self.initial_width
 
@@ -695,7 +687,7 @@ class RoadLink:
         number = max(int(np.ceil(l/interval))-1, 1)
         max_distance = furthest_point(link, link_polygon)
         
-        w_lst = []
+        w_list = []
 
         #by interval measure the width
         for n in range(number):
@@ -710,24 +702,24 @@ class RoadLink:
             cutter_intersection = cutter.intersection(link_polygon)
             
             if get_num_geometries(cutter_intersection) == 1:
-                w_lst.append(cutter_intersection.length)
+                w_list.append(cutter_intersection.length)
                 
             # if the link is split, measure the widthest one
             else:
-                width_part_lst = []
+                width_part_list = []
                 for line_part in cutter_intersection.geoms:
-                    width_part_lst.append(line_part.length)
-                    w_lst.append(max(width_part_lst))
+                    width_part_list.append(line_part.length)
+                    w_list.append(max(width_part_list))
 
         # if cannot measure the right width, return the minimum length of the edges
-        if not w_lst:
+        if not w_list:
             for edge in edges:
                 if edge:
-                    w_lst.append(2 * minimum_bounding_radius(edge))
-        if not w_lst:
+                    w_list.append(2 * minimum_bounding_radius(edge))
+        if not w_list:
             return 0
             
-        return min(w_lst)
+        return min(w_list)
         
     '''道路閉塞モデル'''
     def blockage(self, debris_list, debris_precal_list):

@@ -4,6 +4,37 @@
 # for Visual Studio Code
 .vscode/
 
+# for TeX Document
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.fls
+*.out
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+*.bbl
+*.blg
+*~
+*.backup
+*.bak
+*.tmp
+*.dvi
+*.xdv
+*.~*
+*.idx
+*.ilg
+*.ind
+*.glo
+*.gls
+*.glg
+latexmkrc
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

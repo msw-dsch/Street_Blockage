@@ -802,7 +802,7 @@ class RoadEdge(TranEdge):
 class BldgAccessEdge(TranEdge):
     def __init__(self, bldgnode: BldgNode, node_id, node_geo):
         node1_id, node2_id = bldgnode.id, node_id
-        weight = bldgnode.ground.distance(node_geo)
+        weight = 0
         super().__init__(f'{node1_id}-{node2_id}', node1_id, node2_id, weight)
 
 '''経路：グラフ'''
